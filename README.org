@@ -1,0 +1,89 @@
+#+TITLE: org-roam-readwise
+#+AUTHOR: snowiow
+
+org-roam-readwise let's you export your readwise highlights into org-roam. Each =book= becomes it's own note and the goal is to have a similar experience as with the Obsidian Readwise plugin.
+
+The package will create a new directory in your =org-roam-directory= called =readwise=. In there you will find different subdirectories for articles, books etc.
+
+* Installation & Configuration
+To install =org-roam-readwise= you can use the new =:vc= attribute in =use-package=:
+
+#+begin_src emacs-lisp
+  (use-package org-readwise
+     :vc (:url "https://github.com/snowiow/org-roam-readwise"
+               :branch "main")
+    :after org-roam
+    :custom
+    (org-roam-readwise-output-location (concat org-roam-directory "/pages/readwise")) ;; This is the default and it can be changed
+    (org-readwise-auth-source 'auth-source-pass) ;; Use either auth-source or auth-source-pass
+    (org-readwise-debug t)) ;; In case you want to see more detailed debugging messages during synchronization
+
+#+end_src
+
+* Authorization
+** Using auth-source
+
+To use =org-roam-readwise=, you need to configure it with your Readwise API token. The token should be stored in one of the files defined in `auth-sources`.
+
+Example configuration:
+#+BEGIN_SRC emacs-lisp
+;; Ensure auth-source is configured to find your Readwise token
+(setq auth-sources '("~/.authinfo.gpg"))
+#+END_SRC
+
+*** Authinfo Configuration
+org-roam-readwise requires an access token for Readwise, which should be stored in your `authinfo.pgp` file.
+
+Example `authinfo.pgp` entry:
+#+begin_example
+machine readwise.io login <your-email> password <your-readwise-token>
+#+end_example
+
+Here's the syntax breakdown:
+- `machine readwise.io`: The host for Readwise API.
+- `login <your-email>`: Your Readwise login email.
+- `password <your-readwise-token>`: Your Readwise access token.
+
+** Using auth-source-pass
+
+Alternatively when you pass, you can use =auth-source-pass=:
+#+begin_src emacs-lisp
+  (use-package auth-source-pass
+    :ensure nil
+    :config
+    (auth-source-pass-enable)
+    :custom
+    (auth-sources '(password-store)))
+  
+#+end_src
+
+In the =org-roam-readwise= definition you specify ='auth-source-pass= as your auth source:
+#+begin_src emacs-lisp
+  (org-readwise-auth-source 'auth-source-pass)
+#+end_src
+
+=org-roam-readwise= expects a root level entry called =readwise.io= in your pass directory. As the password the API key is stored
+
+* Usage
+
+To sync your Readwise highlights, run:
+#+begin_src emacs-lisp
+M-x org-roam-readwise-sync
+#+end_src
+
+This will fetch your highlights and insert each book into a note under the specified output location.
+
+* Limitations
+
+- No real-time sync: Manual trigger required for syncing.
+- Single user setup: Designed for single user configurations.
+- Performance: Syncing a large number of highlights can be slow.
+- Customization needed: Advanced configurations might require code adjustments.
+- Currently everything will be synced regardless of if it was stored already. This can be very slow, but will optimize this with later changes
+- No mapping for the different readwise categories possible. Books go into a books subdirectory, articles go into an articles subdirectory bucket, etc.
+
+* Contributing
+Contributions are welcome! Feel free to open issues or submit pull requests on the [[https://github.com/CountGreven/org-readwise][GitHub repository]].
+
+* Thank you
+A big thank you to CountGreven for creating [[https://github.com/CountGreven/org-readwise][org-readwise]]. I took his code base as a foundation and build this package from there.
