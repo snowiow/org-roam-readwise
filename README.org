@@ -3,7 +3,8 @@
 
 org-roam-readwise let's you export your readwise highlights into org-roam. Each =book= becomes it's own note and the goal is to have a similar experience as with the Obsidian Readwise plugin.
 
-The package will create a new directory in your =org-roam-directory= called =readwise=. In there you will find different subdirectories for articles, books etc.
+The package will create a new directory in your =org-roam-directory= called =readwise=. In there you will find different subdirectories for articles, books etc. A typical synced book will look like this:
+[[./screenshot.png]]
 
 * Installation & Configuration
 To install =org-roam-readwise= you can use the new =:vc= attribute in =use-package=:
@@ -65,7 +66,6 @@ In the =org-roam-readwise= definition you specify ='auth-source-pass= as your au
 =org-roam-readwise= expects a root level entry called =readwise.io= in your pass directory. As the password the API key is stored
 
 * Usage
-
 To sync your Readwise highlights, run:
 #+begin_src emacs-lisp
 M-x org-roam-readwise-sync
@@ -73,8 +73,16 @@ M-x org-roam-readwise-sync
 
 This will fetch your highlights and insert each book into a note under the specified output location.
 
-* Limitations
 
+* Features
+** One way reproducible sync
+This Readwise sync package is a one way sync tool from Readwise to your notes, similar to the official Obsidian Readwise plugin. Therefore this package makes use of readwise id's for org id's. This means, if you create links from other nodes to a readwise book node or a headline within them, they are durable. You can delete all your synced books, recreate them and links should still work.
+
+This is also the intended usecase for this package. Don't further enrich the synced nodes with your own content, rather link from your content to the readwise nodes and think of the readwise nodes as. When used in this way, Readwise becomes the single source of truth for your highlights and you gain durable referencing to your highlights and you can utilize links back to Readwise itself.
+
+To read more about this concept, have a look at this [[https://medium.com/obsidian-observer/using-readwises-highlight-id-as-a-single-source-of-truth-in-obsidian-b1de98a8b87c][link]].
+
+* Limitations
 - No real-time sync: Manual trigger required for syncing.
 - Single user setup: Designed for single user configurations.
 - Performance: Syncing a large number of highlights can be slow.
