@@ -45,6 +45,11 @@
   :prefix "org-roam-readwise-"
   :link '(info-link "(org-roam-readwise) Top"))
 
+(defcustom org-roam-readwise-last-sync-time-file "~/.emacs.d/org-roam-readwise-last-sync"
+  "File to store the last sync time for org-readwise."
+  :group 'org-readwise
+  :type 'string)
+
 (defcustom org-roam-readwise-output-location (concat org-roam-directory "/pages/readwise")
   "Specify where to output directory of the Readwise highlights.
 Subsequent directories for articles, books, etc. are created under this path.
@@ -65,11 +70,27 @@ The default path is <org-roam-directory>/pages/readwise."
   :type '(choice (const :tag "Standard auth-source (default)" auth-source)
                  (const :tag "Password Store (pass)" auth-source-pass)))
 
+(defvar org-roam-readwise-last-sync-time nil
+  "The timestamp of the last successful sync.")
+
 (defun org-roam-readwise--debug (message &rest args)
   "Log a debug message.
 MESSAGE is the format string, and ARGS are the arguments for the format string."
   (when org-roam-readwise-debug
     (apply #'message (concat "[org-roam-readwise] " message) args)))
+
+(defun org-roam-readwise--load-last-sync-time ()
+  "Load the last sync time from `org-roam-readwise-last-sync-time-file`."
+  (when (file-exists-p org-roam-readwise-last-sync-time-file)
+    (with-temp-buffer
+      (insert-file-contents org-roam-readwise-last-sync-time-file)
+      (setq org-roam-readwise-last-sync-time (buffer-string)))))
+
+(defun org-roam-readwise--save-last-sync-time (timestamp)
+  "Save the last sync time TIMESTAMP to `org-roam-readwise-last-sync-time-file`."
+  (with-temp-file org-roam-readwise-last-sync-time-file
+    (insert timestamp))
+  (setq org-roam-readwise-last-sync-time timestamp))
 
 (defun org-roam-readwise--get-access-token ()
   "Get the access token for Readwise from auth-source."
@@ -85,7 +106,7 @@ MESSAGE is the format string, and ARGS are the arguments for the format string."
               (funcall secret)
             secret)))))
 
-(defun org-roam-readwise--export (callback &optional cursor updated-after)
+(defun org-roam-readwise--export (callback &optional cursor)
   "Get highlight from the Readwise API, handling pagination with CURSOR.
 Include the UPDATED-AFTER parameter only in the initial request.
 CALLBACK is called when all pagination is completed."
@@ -93,7 +114,7 @@ CALLBACK is called when all pagination is completed."
          (url (if cursor
                   (concat org-roam-readwise--sync-url "?pageCursor=" (format "%s" cursor))
                 (concat org-roam-readwise--sync-url
-                        (when updated-after (concat "?updatedAfter=" (url-hexify-string updated-after)))))))
+                        (when org-roam-readwise-last-sync-time (concat "?updatedAfter=" (url-hexify-string org-roam-readwise-last-sync-time)))))))
     (request url
       :headers token-header
       :parser 'json-read
@@ -105,7 +126,7 @@ CALLBACK is called when all pagination is completed."
                       (setq results (append results nil)))
                     (org-roam-readwise--process-results results)
                     (if next-cursor
-                        (org-roam-readwise--export callback next-cursor updated-after)
+                        (org-roam-readwise--export callback next-cursor)
                       (funcall callback)))))
       :error (cl-function
               (lambda (&key error-thrown &allow-other-keys)
@@ -256,14 +277,12 @@ If SUBDIR is specified, the subdir under the main readwise dir is created."
   "Synchronize highlight from Readwise and create org-roam nodes."
   (interactive)
   (org-roam-readwise--create-readwise-dir)
-  ;; (org-readwise--load-last-sync-time)
-  ;; (let ((updated-after (unless all org-readwise-last-sync-time)))
+  (org-roam-readwise--load-last-sync-time)
   (org-roam-readwise--export
    (lambda ()
      (org-roam-db-sync)
+     (org-roam-readwise--save-last-sync-time (format-time-string "%Y-%m-%dT%H:%M:%S%z"))
      (message "Successfully synced all readwise books."))))
-      ;; Save the last sync time
-      ;; (org-readwise--save-last-sync-time (format-time-string "%Y-%m-%dT%H:%M:%S%z")))))
 
 (provide 'org-roam-readwise)
 ;;; org-roam-readwise,el ends here
