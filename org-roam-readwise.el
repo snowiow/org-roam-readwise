@@ -6,7 +6,7 @@
 ;; Author: snowiow
 ;; URL: https://github.com/snowiow/org-roam-readwise
 ;; Version: 0.2
-;; Package-Requires: ((emacs "24.3") (request "0.3.2") (org "9.1"))
+;; Package-Requires: ((emacs "26.1") (request "0.3.2") (org "9.1") (org-roam "2.0.0"))
 ;; Keywords: tools, convenience, outlines, hypermedia
 
 ;; This program is free software: you can redistribute it and/or modify
@@ -32,10 +32,11 @@
 (require 'org)
 (require 'org-roam)
 (require 'auth-source)
+(require 'subr-x)
+(require 'seq)
 (require 'url)
 (require 'request)
 (require 'json)
-(require 'readwise-lib)
 
 (defvar org-roam-readwise--sync-url "https://readwise.io/api/v2/export")
 
@@ -45,7 +46,7 @@
   :prefix "org-roam-readwise-"
   :link '(info-link "(org-roam-readwise) Top"))
 
-(defcustom org-roam-readwise-last-sync-time-file "~/.emacs.d/org-roam-readwise-last-sync"
+(defcustom org-roam-readwise-last-sync-time-file (expand-file-name "org-roam-readwise-last-sync" user-emacs-directory)
   "File to store the last sync time for org-readwise."
   :group 'org-readwise
   :type 'string)
@@ -261,10 +262,6 @@ HIGHLIGHTS is the list of highlights for the current book."
           (org-roam-readwise--debug "Processing book: %s (ID: %s)" (or (assoc-default 'title book) "No Title") (assoc-default 'user_book_id book))
           (org-roam-readwise--process-book book)))))
 
-(defun string-empty-p (str)
-  "Check whether STR is empty."
-  (string= str ""))
-
 (defun org-roam-readwise--create-readwise-dir (&optional subdir)
   "Create readwise related directories if they don't exist yet.
 If SUBDIR is specified, the subdir under the main readwise dir is created."
@@ -297,4 +294,4 @@ If ALL is non-nil (when called with a universal argument), pull all highlights."
   
 
 (provide 'org-roam-readwise)
-;;; org-roam-readwise,el ends here
+;;; org-roam-readwise.el ends here
