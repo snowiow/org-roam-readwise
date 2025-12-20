@@ -73,6 +73,9 @@ The default path is <org-roam-directory>/pages/readwise."
 (defvar org-roam-readwise-last-sync-time nil
   "The timestamp of the last successful sync.")
 
+(defvar org-roam-readwise--last-cursor nil
+  "Tracks the last cursor received from the Readwise API during pagination.")
+
 (defun org-roam-readwise--debug (message &rest args)
   "Log a debug message.
 MESSAGE is the format string, and ARGS are the arguments for the format string."
@@ -106,15 +109,14 @@ MESSAGE is the format string, and ARGS are the arguments for the format string."
               (funcall secret)
             secret)))))
 
-(defun org-roam-readwise--export (callback &optional cursor)
+(defun org-roam-readwise--export (callback &optional updated-after cursor)
   "Get highlight from the Readwise API, handling pagination with CURSOR.
 Include the UPDATED-AFTER parameter only in the initial request.
 CALLBACK is called when all pagination is completed."
   (let* ((token-header (list (cons "Authorization" (concat "Token " (org-roam-readwise--get-access-token)))))
-         (url (if cursor
-                  (concat org-roam-readwise--sync-url "?pageCursor=" (format "%s" cursor))
-                (concat org-roam-readwise--sync-url
-                        (when org-roam-readwise-last-sync-time (concat "?updatedAfter=" (url-hexify-string org-roam-readwise-last-sync-time)))))))
+         (url (concat (concat org-roam-readwise--sync-url
+                              (when cursor (concat "?pageCursor=" (format "%s" cursor)))
+                              (when updated-after (concat (if cursor "&" "?") "updatedAfter=" (url-hexify-string updated-after)))))))
     (request url
       :headers token-header
       :parser 'json-read
@@ -122,11 +124,12 @@ CALLBACK is called when all pagination is completed."
                 (lambda (&key data &allow-other-keys)
                   (let ((results (assoc-default 'results data))
                         (next-cursor (assoc-default 'nextPageCursor data)))
+                    (org-roam-readwise--debug "Got cursor %s" next-cursor)
                     (when (vectorp results)
                       (setq results (append results nil)))
                     (org-roam-readwise--process-results results)
                     (if next-cursor
-                        (org-roam-readwise--export callback next-cursor)
+                        (org-roam-readwise--export callback updated-after next-cursor)
                       (funcall callback)))))
       :error (cl-function
               (lambda (&key error-thrown &allow-other-keys)
@@ -273,16 +276,25 @@ If SUBDIR is specified, the subdir under the main readwise dir is created."
         (message "%s already exists. Skipping" dir)
       (message "%s created." dir))))
     
-(defun org-roam-readwise-sync ()
-  "Synchronize highlight from Readwise and create org-roam nodes."
-  (interactive)
+(defun org-roam-readwise-sync (&optional all)
+  "Synchronize highlight from Readwise and create org-roam nodes.
+If ALL is non-nil (when called with a universal argument), pull all highlights."
+  (interactive "P")
   (org-roam-readwise--create-readwise-dir)
   (org-roam-readwise--load-last-sync-time)
-  (org-roam-readwise--export
-   (lambda ()
-     (org-roam-db-sync)
-     (org-roam-readwise--save-last-sync-time (format-time-string "%Y-%m-%dT%H:%M:%S%z"))
-     (message "Successfully synced all readwise books."))))
+  (if all
+      (message "Syncing all readwise books.")
+    (if org-roam-readwise-last-sync-time
+        (message "Syncing readwise books starting %s" org-roam-readwise-last-sync-time)
+      (message "Syncing for the first time.")))
+  (let ((updated-after (unless all org-roam-readwise-last-sync-time)))
+    (org-roam-readwise--export
+     (lambda ()
+       (org-roam-db-sync)
+       (org-roam-readwise--save-last-sync-time (format-time-string "%Y-%m-%dT%H:%M:%S%z"))
+       (message "Successfully synced all readwise books."))
+     updated-after)))
+  
 
 (provide 'org-roam-readwise)
 ;;; org-roam-readwise,el ends here

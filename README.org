@@ -73,6 +73,10 @@ M-x org-roam-readwise-sync
 
 This will fetch your highlights and insert each book into a note under the specified output location.
 
+The first time you run this command it will sync all your readwise highlights and write a timestamp file under ~org-roam-readwise-output-location~. Subsequent runs will only sync from this time forward to sync faster and more efficient. If you however need a full resync of all your highlights you can execute:
+#+begin_src emacs-lisp
+C-u M-x org-roam-readwise-sync
+#+end_src
 
 * Features
 ** One way reproducible sync
