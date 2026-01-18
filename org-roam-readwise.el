@@ -137,6 +137,25 @@ CALLBACK is called when all pagination is completed."
                 (message "Got error: %S" error-thrown))))
     :status-code '((401 . (lambda (&rest _) (message "Unauthorized"))))))
 
+(defun org-roam-readwise--goto-headline-by-id (id)
+  "Move point to the headline with the given ID property.
+Returns the position if found, nil otherwise."
+  (goto-char (point-min))
+  (let ((found nil))
+    (while (and (not found)
+                (re-search-forward (format "^[ \t]*:ID:[ \t]+%s[ \t]*$" (regexp-quote id)) nil t))
+      (when (org-at-property-p)
+        (org-back-to-heading t)
+        (setq found (point))))
+    found))
+
+(defun org-roam-readwise--delete-headline ()
+  "Delete the current headline and its entire subtree."
+  (org-back-to-heading t)
+  (let ((start (point)))
+    (org-end-of-subtree t t)
+    (delete-region start (point))))
+
 (defun org-roam-readwise--insert-org-heading (level title id &optional author url body tags buffer)
   "Insert an `org-mode` heading.
 LEVEL is the heading level.
@@ -179,6 +198,23 @@ BUFFER is the buffer or file to insert the heading into."
          buffer)
     (when (and note (not (string-empty-p note)))
       (org-roam-readwise--insert-org-heading 2 "Note" (concat highlight-id "-note") nil nil note nil buffer))))
+
+(defun org-roam-readwise--update-or-delete-highlight (highlight buffer)
+  "Update or delete a HIGHLIGHT in BUFFER based on is_discard flag.
+If is_discard is true, delete the highlight headline if it exists.
+If is_discard is false, update the existing headline or insert a new one."
+  (let* ((highlight-id (number-to-string (assoc-default 'id highlight)))
+         (is-discard (eq (assoc-default 'is_discard highlight) t)))
+    (with-current-buffer buffer
+      ;; Delete existing headline if found
+      (when (org-roam-readwise--goto-headline-by-id highlight-id)
+        (org-roam-readwise--delete-headline)
+        (org-roam-readwise--debug "Deleted highlight %s" highlight-id))
+      ;; (Re)insert highlight unless discarded
+      (unless is-discard
+        (goto-char (point-max))
+        (org-roam-readwise--write-highlight highlight buffer)
+        (org-roam-readwise--debug "Inserted highlight %s" highlight-id)))))
 
 (defun org-roam-readwise--write-header (book &optional last-updated)
   "Write the file header from BOOK and everything up to the highlight.
@@ -237,17 +273,25 @@ Returns the date in the format YYYY-MM-DD HH:MM:SS"
   "Based on the arguments an org-roam-node is written.
 FILE-NAME is the name of the file that is written.
 BOOK is the whole book.
-HIGHLIGHTS is the list of highlights for the current book."
-  (with-current-buffer (find-file-noselect file-name)
-    (erase-buffer)
-    (when (vectorp highlights)
-      (setq highlights (append highlights nil)))
-    (org-roam-readwise--write-header book (org-roam-readwise--get-last-updated highlights))
-    ;; Convert vector to list if necessary
-    (dolist (highlight highlights)
-      (org-roam-readwise--write-highlight highlight (current-buffer)))
-    (save-buffer)
-    (org-roam-readwise--debug "Created org-roam node: %s" file-name)))
+HIGHLIGHTS is the list of highlights for the current book.
+If the file already exists, performs partial update of only the changed highlights."
+  (when (vectorp highlights)
+    (setq highlights (append highlights nil)))
+  (let ((file-exists (file-exists-p file-name)))
+    (with-current-buffer (find-file-noselect file-name)
+      (if file-exists
+          (progn
+            (org-roam-readwise--debug "Updating highlights in: %s" file-name)
+            (dolist (highlight highlights)
+              (org-roam-readwise--update-or-delete-highlight highlight (current-buffer))))
+        (org-roam-readwise--debug "Creating new file: %s" file-name)
+        (erase-buffer)
+        (org-roam-readwise--write-header book (org-roam-readwise--get-last-updated highlights))
+        (dolist (highlight highlights)
+          ;; Skip discarded highlights when creating new file
+          (unless (eq (assoc-default 'is_discard highlight) t)
+            (org-roam-readwise--write-highlight highlight (current-buffer)))))
+      (save-buffer))))
 
 (defun org-roam-readwise--process-results (results)
   "Process RESULTS of export API call."
