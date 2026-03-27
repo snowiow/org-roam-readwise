@@ -77,6 +77,43 @@ The default path is <org-roam-directory>/pages/readwise."
 (defvar org-roam-readwise--last-cursor nil
   "Tracks the last cursor received from the Readwise API during pagination.")
 
+(defun org-roam-readwise--markdown-to-org (text)
+  "Convert markdown TEXT to org-mode syntax.
+Handles links, bold, italic, inline code, and strikethrough."
+  (when text
+    (let ((result text))
+      ;; Links: [text](url) → [[url][text]]
+      (setq result (replace-regexp-in-string
+                    "\\[\\([^]]+\\)\\](\\([^)]+\\))"
+                    "[[\\2][\\1]]"
+                    result))
+      ;; Bold: **text** → *text*
+      (setq result (replace-regexp-in-string
+                    "\\*\\*\\([^*]+\\)\\*\\*"
+                    "*\\1*"
+                    result))
+      ;; Bold: __text__ → *text*
+      (setq result (replace-regexp-in-string
+                    "__\\([^_]+\\)__"
+                    "*\\1*"
+                    result))
+      ;; Italic: _text_ → /text/
+      (setq result (replace-regexp-in-string
+                    "_\\([^_]+\\)_"
+                    "/\\1/"
+                    result))
+      ;; Inline code: `code` → =code=
+      (setq result (replace-regexp-in-string
+                    "`\\([^`]+\\)`"
+                    "=\\1="
+                    result))
+      ;; Strikethrough: ~~text~~ → +text+
+      (setq result (replace-regexp-in-string
+                    "~~\\([^~]+\\)~~"
+                    "+\\1+"
+                    result))
+      result)))
+
 (defun org-roam-readwise--debug (message &rest args)
   "Log a debug message.
 MESSAGE is the format string, and ARGS are the arguments for the format string."
@@ -183,8 +220,8 @@ BUFFER is the buffer or file to insert the heading into."
 (defun org-roam-readwise--write-highlight (highlight buffer)
   "Process a single HIGHLIGHT and insert it into BUFFER."
   (let ((highlight-id (number-to-string (assoc-default 'id highlight)))
-        (text (assoc-default 'text highlight))
-        (note (assoc-default 'note highlight))
+        (text (org-roam-readwise--markdown-to-org (assoc-default 'text highlight)))
+        (note (org-roam-readwise--markdown-to-org (assoc-default 'note highlight)))
         (url (assoc-default 'url highlight))
         (readwise-url (assoc-default 'readwise_url highlight)))
         (org-roam-readwise--insert-org-heading
@@ -223,7 +260,7 @@ If LAST-UPDATED is set, it will be set as a property."
         (id (assoc-default 'user_book_id book))
         (author (assoc-default 'author book))
         (source-url (assoc-default 'source_url book))
-        (summary (assoc-default 'summary book)))
+        (summary (org-roam-readwise--markdown-to-org (assoc-default 'summary book))))
     ;; Properties
     (insert (format ":PROPERTIES:\n:ID: %s\n" id))
     (when author

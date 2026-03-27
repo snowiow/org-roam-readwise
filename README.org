@@ -79,6 +79,9 @@ C-u M-x org-roam-readwise-sync
 #+end_src
 
 * Features
+** Markdown to Org-mode conversion
+Readwise content (highlight text, notes, and book summaries) often contains Markdown formatting. =org-roam-readwise= automatically converts this to the equivalent Org-mode syntax on import, including links, bold, italic, inline code and strikethrough.
+
 ** One way reproducible sync
 This Readwise sync package is a one way sync tool from Readwise to your notes, similar to the official Obsidian Readwise plugin. Therefore this package makes use of readwise id's for org id's. This means, if you create links from other nodes to a readwise book node or a headline within them, they are durable. You can delete all your synced books, recreate them and links should still work.
 
