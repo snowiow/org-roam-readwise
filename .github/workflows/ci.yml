@@ -18,6 +18,9 @@ jobs:
       - uses: purcell/setup-emacs@v7.0
         with:
           version: 30.2
+      - name: install dependencies
+        run: |
+          emacs -Q --batch -l .github/workflows/install-deps.el
       - name: run linter on all files
         uses: leotaku/elisp-check@v1.3
         with:
@@ -31,5 +34,11 @@ jobs:
       - uses: purcell/setup-emacs@v7.0
         with:
           version: 30.2
+      - name: install dependencies
+        run: |
+          emacs -Q --batch -l .github/workflows/install-deps.el
       - name: run ERT tests
-        run: emacs --batch -l org-roam-readwise-test.el -f ert-run-tests-batch-and-exit
+        uses: leotaku/elisp-check@v1.3
+        with:
+          check: ert
+          file: "org-roam-readwise-test.el"
