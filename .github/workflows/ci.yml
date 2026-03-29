@@ -23,3 +23,13 @@ jobs:
         with:
           check: ${{ matrix.elisp-check }}
           file: "org-roam-readwise.el"
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: purcell/setup-emacs@v7.0
+        with:
+          version: 30.2
+      - name: run ERT tests
+        run: emacs --batch -l org-roam-readwise-test.el -f ert-run-tests-batch-and-exit
